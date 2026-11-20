@@ -17,7 +17,7 @@
 <body>
 
   <h1>📚 Моя библиотека</h1>
-  <ul id="book-list">Загрузка списка книг...</ul>
+  <ul id="book-list"><li>Загрузка списка книг...</li></ul>
 
   <script>
     const USER = "yusu-source"; // ЗАМЕНИТЕ НА СВОЙ
@@ -27,7 +27,10 @@
     async function loadBooks() {
       const listEl = document.getElementById("book-list");
       try {
-        const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}`);
+        const res = await fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/${FOLDER}`);
+        if (!res.ok) {
+          throw new Error(`GitHub API ответил ${res.status}` + (res.status === 403 ? " (лимит запросов, попробуйте через час)" : ""));
+        }
         const files = await res.json();
 
         const books = files.filter(f => f.name.toLowerCase().endsWith(".pdf"));
@@ -41,7 +44,8 @@
           const title = book.name.replace(/\.pdf$/i, "");
           const sizeMB = (book.size / (1024 * 1024)).toFixed(1);
           // Путь указываем относительно папки web/, где лежит viewer.html
-          const fileUrl = `../${book.path}`;
+          // Кодируем каждую часть пути, чтобы работали пробелы, кириллица, # и т.п. в именах файлов
+          const fileUrl = "../" + book.path.split("/").map(encodeURIComponent).join("/");
           const viewerUrl = `web/viewer.html?file=${encodeURIComponent(fileUrl)}`;
 
           return `
@@ -52,7 +56,8 @@
           `;
         }).join("");
       } catch (e) {
-        listEl.innerHTML = "<li>Ошибка загрузки. Проверьте логин, имя репозитория и наличие папки books.</li>";
+        console.error(e);
+        listEl.innerHTML = `<li>Ошибка загрузки: ${e.message}. Проверьте логин, имя репозитория и наличие папки books.</li>`;
       }
     }
 
